@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
 # Headless STL/3MF/SCAD screenshots. See tools/cloud/render.mjs --help.
-"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cloud/need" render
-exec node "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cloud/render.mjs" "$@"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$here/cloud/need" render
+# A Playwright installed with `npm i -g` is not on Node's default resolution path.
+node -e "require('playwright')" 2>/dev/null || export NODE_PATH="$(npm root -g)${NODE_PATH:+:$NODE_PATH}"
+exec node "$here/cloud/render.mjs" "$@"
