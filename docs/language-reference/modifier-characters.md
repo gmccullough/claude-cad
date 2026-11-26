@@ -1,0 +1,149 @@
+# OpenSCAD User Manual - Modifier Characters
+
+> Source: [https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/Modifier_Characters](https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/Modifier_Characters)
+
+Modifier characters are used to change the appearance or behaviors of child nodes. They are particularly useful in debugging where they can be used to highlight specific objects, or include or exclude them from rendering.
+
+## Advanced Concept
+
+OpenSCAD uses different libraries to implement capabilities, and this can introduce some inconsistencies to the F5 preview behavior of transformations. Traditional transforms (`translate`, `rotate`, `scale`, `mirror` & `multmatrix`) are performed using OpenGL in preview, while other more advanced transforms, such as `resize`, perform a CGAL operation, behaving like a CSG operation affecting the underlying object, not just transforming it. In particular this can affect the display of modifier characters, specifically `#` and `%`, where the highlight may not display intuitively, such as highlighting the pre-resized object, but highlighting the post-scaled object.
+
+> **Note:** The color changes triggered by character modifiers appear only in "Compile" mode, not "Compile and Render (CGAL)" mode. (As per the color section.)
+
+## Background Modifier (`%`)
+
+Ignore this subtree for the normal rendering process and draw it in transparent gray (all transformations are still applied to the nodes in this tree).
+
+Because the marked subtree is completely ignored, it might have unexpected effects in case it's used, for example, with the first object in a `difference()`. In that case this object is rendered in transparent gray, but it is not used as the base for the `difference()`!
+
+**Usage:**
+
+```openscad
+% { ... }
+```
+
+**Example:**
+
+```openscad
+difference() {
+    cylinder (h = 12, r=5, center = true, $fn=100);
+    // first object to be subtracted
+    rotate ([90,0,0]) cylinder (h = 15, r=1, center = true, $fn=100);
+    // second object to be subtracted
+    %rotate ([0,90,0]) cylinder (h = 15, r=3, center = true, $fn=100);
+}
+```
+
+The second subtracted cylinder is shown in transparent gray but is not actually subtracted from the main cylinder.
+
+## Debug Modifier (`#`)
+
+Use this subtree as usual in the rendering process but also draw it unmodified in transparent pink.
+
+**Usage:**
+
+```openscad
+# { ... }
+```
+
+**Example:**
+
+```openscad
+difference() {
+    // start objects
+    cylinder (h = 12, r=5, center = true, $fn=100);
+    // first object to be subtracted
+    #rotate ([90,0,0]) cylinder (h = 15, r=1, center = true, $fn=100);
+    // second object to be subtracted
+    #rotate ([0,90,0]) cylinder (h = 15, r=3, center = true, $fn=100);
+}
+```
+
+The subtracted cylinders are shown in transparent pink, making it easy to see what is being removed.
+
+## Root Modifier (`!`)
+
+Ignore the rest of the design and use this subtree as design root.
+
+**Usage:**
+
+```openscad
+! { ... }
+```
+
+**Example:**
+
+```openscad
+difference() {
+    cube(10, center = true);
+    translate([0, 0, 5]) {
+        !rotate([90, 0, 0]) {
+            #cylinder(r = 2, h = 20, center = true, $fn = 40);
+        }
+    }
+}
+```
+
+As shown in the example, with the root modifier active, the `rotate()` is executed as it's part of the subtree marked with the root modifier, but the `translate()` has no effect. The rest of the design (the cube and the difference) is also ignored.
+
+## Disable Modifier (`*`)
+
+Simply ignore this entire subtree.
+
+**Usage:**
+
+```openscad
+* { ... }
+```
+
+**Example:**
+
+```openscad
+difference() {
+    cube(10, center = true);
+    translate([0, 0, 5]) {
+        rotate([0, 90, 0]) {
+            cylinder(r = 2, h = 20, center = true, $fn = 40);
+        }
+        *rotate([90, 0, 0]) {
+            #cylinder(r = 2, h = 20, center = true, $fn = 40);
+        }
+    }
+}
+```
+
+The disable modifier allows you to comment out one or multiple subtrees. Compared to using the usual line or multi-line comments, it's aware of the hierarchical structure, which makes it easier to disable even larger trees without the need to search for the end of the subtree.
+
+## Summary of Modifier Characters
+
+| Modifier | Character | Effect |
+|----------|-----------|--------|
+| Background | `%` | Draws in transparent gray, excluded from rendering |
+| Debug | `#` | Renders normally but also shows in transparent pink |
+| Root | `!` | Uses only this subtree as the design root |
+| Disable | `*` | Completely ignores this subtree |
+
+## Echo Statements
+
+This function prints the contents to the compilation window (aka Console). Useful for debugging code. Also see the String function `str()`.
+
+Numeric values are rounded to 5 significant digits.
+
+It can be handy to use `variable=variable` as the expression to easily label the variables, see the example below.
+
+**Usage examples:**
+
+```openscad
+my_h=50;
+my_r=100;
+echo("This is a cylinder with h=", my_h, " and r=", my_r);
+echo(my_h=my_h, my_r=my_r); // shortcut
+cylinder(h=my_h, r=my_r);
+```
+
+Shows in the Console as:
+
+```
+ECHO: "This is a cylinder with h=", 50, " and r=", 100
+ECHO: my_h = 50, my_r = 100
+```

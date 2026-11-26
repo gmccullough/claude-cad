@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# On-demand setup: make sure a capability is installed, install it if not, and stay
+# quiet and fast (well under a second) when it already is. Idempotent; safe to call
+# from wrappers on every run. The tool wrappers (tools/openscad, tools/bambu-studio,
+# tools/blender, tools/render) call it themselves, so agents rarely need to.
+#
+#   tools/cloud/need python            # numpy/trimesh/manifold3d/opencv... (requirements.txt)
+#   tools/cloud/need openscad          # OpenSCAD 2025 wasm + BOSL2          (~5 s)
+#   tools/cloud/need openscad-native   # apt OpenSCAD 2021 + Xvfb, for -o x.png (~30 s)
+#   tools/cloud/need render            # headless Chromium/Playwright for tools/render
+#   tools/cloud/need blender           # apt Blender 4.0 (Cycles on CPU)      (~1 min)
+#   tools/cloud/need bambu             # Bambu Studio CLI AppImage (BAMBU.md) (~20 s; needs GitHub release downloads)
+#   tools/cloud/need all               # everything above
+#
+# On a Mac with the desktop apps installed, openscad/blender/bambu are satisfied by the apps.
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+say() { echo "need: $*" >&2; }
+is_root_apt() { command -v apt-get >/dev/null && [ "$(id -u)" = 0 ]; }
+apt_install() {
+  is_root_apt || { say "cannot apt-get install $* here (not root/apt); install it manually"; return 1; }
+  if [ ! -f /tmp/.need-apt-updated ]; then apt-get update -qq && touch /tmp/.need-apt-updated; fi
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "$@" >/dev/null
+}
+
+need_python() {
+  python3 -c "import numpy, scipy, trimesh, manifold3d, shapely, matplotlib, PIL, cv2, pymeshfix, rtree" 2>/dev/null && return
+  say "installing python deps (requirements.txt)"
+  local flags="-q"
+  python3 -m pip install --help 2>/dev/null | grep -q -- --break-system-packages && flags="$flags --break-system-packages"
+  python3 -m pip install $flags -r "$here/requirements.txt" 2>&1 | grep -v "Running pip as the 'root'" >&2 || true
+}
+
+need_openscad() {
+  [ -x /Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD ] && return
+  if [ ! -d "$here/node_modules/openscad-wasm-prebuilt" ]; then
+    say "installing OpenSCAD 2025 (wasm)"
+    (cd "$here" && npm install --no-audit --no-fund --loglevel=error >&2)
+  fi
+  if [ ! -d "$here/.cache/libraries/BOSL2" ]; then
+    say "fetching BOSL2"
+    mkdir -p "$here/.cache/libraries"
+    git clone -q --depth 1 https://github.com/BelfrySCAD/BOSL2 "$here/.cache/libraries/BOSL2"
+  fi
+}
+
+need_openscad_native() {
+  command -v openscad >/dev/null && command -v xvfb-run >/dev/null && return
+  [ "$(uname)" = Darwin ] && return
+  say "installing native OpenSCAD 2021 + Xvfb (PNG export)"
+  apt_install openscad xvfb xauth
+}
+
+need_render() {
+  python3 -c "import PIL" 2>/dev/null || need_python
+  if node -e "require('playwright')" 2>/dev/null || NODE_PATH="$(npm root -g)" node -e "require('playwright')" 2>/dev/null; then return; fi
+  say "playwright not found: run 'npm i -g playwright && npx playwright install chromium' (cloud sessions have it preinstalled)"
+  return 1
+}
+
+need_blender() {
+  command -v blender >/dev/null && return
+  [ -x /Applications/Blender.app/Contents/MacOS/Blender ] && return
+  say "installing Blender 4.0 (apt, ~1 min)"
+  apt_install blender
+}
+
+need_bambu() {
+  [ -x /Applications/BambuStudio.app/Contents/MacOS/BambuStudio ] && return
+  [ -x "$here/.cache/bambu/current/squashfs-root/AppRun" ] && return
+  say "installing Bambu Studio CLI (see tools/cloud/BAMBU.md)"
+  "$here/install_bambu.sh" >&2
+}
+
+[ $# -gt 0 ] || { sed -n '2,17p' "$0"; exit 2; }
+for cap in "$@"; do
+  case "$cap" in
+    python) need_python ;;
+    openscad) need_openscad ;;
+    openscad-native) need_openscad_native ;;
+    render) need_render ;;
+    blender) need_blender ;;
+    bambu) need_bambu ;;
+    all) need_python; need_openscad; need_openscad_native; need_render; need_blender; need_bambu ;;
+    *) say "unknown capability '$cap'"; exit 2 ;;
+  esac
+done

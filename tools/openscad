@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Repo-wide OpenSCAD entry point. Uses, in order:
+#   $OPENSCAD_BIN            explicit override
+#   /Applications/OpenSCAD.app (macOS desktop install)
+#   tools/cloud/openscad.mjs  OpenSCAD 2025 wasm under Node (Linux / cloud)
+set -e
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -n "$OPENSCAD_BIN" ]; then exec "$OPENSCAD_BIN" "$@"; fi
+mac=/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD
+if [ -x "$mac" ]; then exec "$mac" "$@"; fi
+"$here/cloud/need" openscad   # installs wasm OpenSCAD + BOSL2 on first use
+exec node --max-old-space-size=8192 "$here/cloud/openscad.mjs" "$@"

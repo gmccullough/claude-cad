@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prints Viewer</title>
+<style>
+  :root {
+    --bg: #1b1d23; --panel: #23262e; --panel-2: #2b2f39; --line: #383d49;
+    --text: #e7e9ee; --muted: #9aa3b2; --accent: #f9d72c; --accent-dim: #cdb024;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font: 13px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    color: var(--text); background: var(--bg);
+    display: grid; grid-template-columns: 290px 1fr; height: 100dvh; overflow: hidden;
+  }
+  aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  aside header { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  aside header h1 { margin: 0; font-size: 14px; letter-spacing: .3px; }
+  aside header p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+  #filter { width: 100%; margin-top: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font-size: 12px; }
+  .list { overflow-y: auto; flex: 1; padding: 6px 8px; min-height: 0; }
+  .group-label { color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: .8px; padding: 10px 8px 4px; }
+  .item { padding: 6px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .item:hover { background: var(--panel-2); }
+  .item.active { background: var(--accent); color: #1b1d23; font-weight: 600; }
+  .item .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .sz { color: var(--muted); font-size: 10px; flex: none; }
+  .item.active .sz { color: #4a4322; }
+  .tag { font-size: 9px; padding: 0 4px; border-radius: 3px; background: #3fa7ff33; color: #8cc8ff; margin-left: 4px; }
+  aside footer { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+
+  main { position: relative; min-width: 0; }
+  #canvas-wrap { position: absolute; inset: 0; }
+  canvas { display: block; touch-action: none; }
+  .toolbar { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 5; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; pointer-events: none; }
+  .toolbar > * { pointer-events: auto; }
+  button.tool, select.tool { background: rgba(35,38,46,.92); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  button.tool:hover, select.tool:hover { border-color: var(--accent-dim); }
+  button.tool.on { background: var(--accent); color: #1b1d23; border-color: var(--accent); font-weight: 600; }
+  #btn-menu { display: none; }
+  .spacer { flex: 1; }
+  .section { display: flex; gap: 6px; align-items: center; background: rgba(35,38,46,.92); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+  .section input[type=range] { width: 140px; }
+  .info { position: absolute; bottom: 10px; left: 10px; z-index: 5; background: rgba(35,38,46,.92); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; min-width: 220px; max-width: min(420px, calc(100% - 20px)); max-height: 55%; overflow: auto; }
+  .info h2 { margin: 0 0 6px; font-size: 12px; word-break: break-all; cursor: pointer; }
+  .info h2::after { content: " ▾"; color: var(--muted); }
+  .info.collapsed h2::after { content: " ▸"; }
+  .info.collapsed h3, .info.collapsed h3 + table { display: none; }
+  .info h3 { margin: 8px 0 2px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .info table { border-collapse: collapse; font-size: 11px; }
+  .info td { padding: 1px 0; vertical-align: top; }
+  .info td.k { color: var(--muted); padding-right: 12px; white-space: nowrap; }
+  .info td.v { font-variant-numeric: tabular-nums; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+  .hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted);
+    font-size: 14px; text-align: center; pointer-events: none; padding: 24px; }
+  .drop-overlay { position: absolute; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; pointer-events: none;
+    background: rgba(249,215,44,.08); border: 3px dashed var(--accent); border-radius: 8px; color: var(--accent); font-size: 18px; font-weight: 600; }
+  body.dragging .drop-overlay { display: flex; }
+
+  @media (max-width: 760px) {
+    body { grid-template-columns: 1fr; }
+    aside { position: fixed; inset: 0 25% 0 0; z-index: 30; transform: translateX(-102%); transition: transform .2s; box-shadow: 4px 0 20px #0008; }
+    body.menu aside { transform: none; }
+    #btn-menu { display: inline-block; }
+    .section input[type=range] { width: 80px; }
+    button.tool, select.tool { padding: 5px 8px; font-size: 12px; }
+    .lbl { display: none; }
+    .info { font-size: 10px; min-width: 0; max-height: 40%; }
+  }
+</style>
+<!-- three.js r160 vendored under viewer/vendor/: no CDN, no build step. -->
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+  <aside>
+    <header>
+      <h1>Prints Viewer</h1>
+      <p>STL + Bambu 3MF from the <code>prints</code> repo</p>
+      <input id="filter" placeholder="Filter (e.g. spinner, .3mf)" />
+    </header>
+    <div class="list" id="list"></div>
+    <footer>Drop any <code>.stl</code> / <code>.3mf</code> on the view.<br/>Served by <code>tools/view</code>; list is live.</footer>
+  </aside>
+
+  <main>
+    <div id="canvas-wrap"></div>
+    <div class="toolbar">
+      <button class="tool" id="btn-menu">☰ Files</button>
+      <button class="tool" id="btn-fit" title="Fit (F)">⤢<span class="lbl"> Fit</span></button>
+      <button class="tool" id="btn-rotate" title="Auto-rotate (R)">↻<span class="lbl"> Spin</span></button>
+      <button class="tool" id="btn-edges" title="Edges (E)">◳<span class="lbl"> Edges</span></button>
+      <button class="tool" id="btn-wire" title="Wireframe (W)">▱<span class="lbl"> Wire</span></button>
+      <button class="tool on" id="btn-helpers" title="Grid + axes (G)">✛<span class="lbl"> Grid</span></button>
+      <button class="tool" id="btn-ortho" title="Orthographic (O)">▭<span class="lbl"> Ortho</span></button>
+      <button class="tool on" id="btn-mods" title="Modifier parts (M)">◇<span class="lbl"> Mods</span></button>
+      <button class="tool on" id="btn-pauses" title="Pause planes (P)">⏸<span class="lbl"> Pauses</span></button>
+      <span class="section"><label><input type="checkbox" id="sec-on" /> Cut Z</label>
+        <input type="range" id="sec-z" min="0" max="1" step="0.01" value="1" /><span id="sec-val">—</span></span>
+      <span class="spacer"></span>
+      <select class="tool" id="sel-view" title="Camera">
+        <option value="iso">Iso</option><option value="iso2">Iso (left)</option><option value="front">Front</option>
+        <option value="back">Back</option><option value="left">Left</option><option value="right">Right</option>
+        <option value="top">Top</option><option value="bottom">Bottom</option>
+      </select>
+      <select class="tool" id="sel-scheme" title="Colours">
+        <option value="cornfield">Cornfield</option><option value="paper">Paper</option><option value="tomorrow">Tomorrow</option>
+        <option value="sunset">Sunset</option><option value="metal">Metal</option>
+      </select>
+    </div>
+    <div class="info" id="info" style="display:none"></div>
+    <script>if (matchMedia("(max-width: 760px)").matches) document.getElementById("info").classList.add("collapsed");</script>
+    <div class="hint" id="hint">Pick a model from the list, or drop an STL / 3MF here.</div>
+    <div class="drop-overlay">Drop STL / 3MF to load</div>
+  </main>
+
+<script type="module">
+import { createViewer } from "./lib/viewer.js";
+import { parseModel } from "./lib/loaders.js";
+
+const $ = id => document.getElementById(id);
+const v = createViewer($("canvas-wrap"));
+v.loop();
+
+const fmt = (n, dp = 1) => Number(n).toFixed(dp);
+const kb = b => b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round(b / 1024) + " KB";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const KIND = { modifier_part: ["#3fa7ff", "modifier"], negative_part: ["#ff4040", "negative"],
+  support_blocker: ["#ff9f1a", "support blocker"], support_enforcer: ["#2ecc71", "support enforcer"] };
+
+async function load(name, buf, label) {
+  $("hint").style.display = "none";
+  const model = await parseModel(name, buf);
+  v.show(model);
+  const s = v.stats();
+  const rows = [
+    ["Size X×Y×Z", `${s.size.map(n => fmt(n)).join(" × ")} mm`],
+    ["Volume", `${fmt(s.volume_mm3 / 1000, 2)} cm³  (~${fmt(s.volume_mm3 / 1000 * 1.24, 1)} g PLA solid)`],
+    ["Triangles", s.tris.toLocaleString()],
+  ];
+  if (model.bed) rows.push(["Bed position", `x ${fmt(s.min[0])}–${fmt(s.max[0])}, y ${fmt(s.min[1])}–${fmt(s.max[1])} of ${model.bed.w}×${model.bed.h}`]);
+  let html = `<h2>${esc(label)}</h2><table>${rows.map(([k, val]) => `<tr><td class="k">${k}</td><td class="v">${esc(val)}</td></tr>`).join("")}</table>`;
+  if (model.parts.length > 1) {
+    html += `<h3>Parts</h3><table>` + model.parts.map(p => {
+      const [col, kind] = KIND[p.kind] || ["", "part"];
+      return `<tr><td class="k">${col ? `<span class="swatch" style="background:${col}"></span>` : ""}${esc(kind)}</td><td class="v">${esc(p.name)}${p.object !== p.name ? ` <span style="color:var(--muted)">(${esc(p.object)})</span>` : ""}</td></tr>`;
+    }).join("") + `</table>`;
+  }
+  if (model.pauses.length)
+    html += `<h3>Layer G-code</h3><table>` + model.pauses.map(p =>
+      `<tr><td class="k"><span class="swatch" style="background:#ff7a00"></span>${esc(p.type)}</td><td class="v">z = ${p.z} mm  <code>${esc(p.gcode)}</code></td></tr>`).join("") + `</table>`;
+  if (model.settings)
+    html += `<h3>Print settings</h3><table>` + Object.entries(model.settings).map(([k, val]) =>
+      `<tr><td class="k">${esc(k)}</td><td class="v">${esc(val)}</td></tr>`).join("") + `</table>`;
+  $("info").innerHTML = html;
+  $("info").style.display = "block";
+  $("info").querySelector("h2").onclick = () => $("info").classList.toggle("collapsed");
+  // section slider spans the model height; jump to the first pause if there is one
+  const z0 = s.min[2], z1 = s.max[2];
+  $("sec-z").min = z0; $("sec-z").max = z1; $("sec-z").step = Math.max((z1 - z0) / 500, 0.01);
+  $("sec-z").value = model.pauses[0]?.z ?? z1;
+  applySection();
+}
+
+function applySection() {
+  const on = $("sec-on").checked, z = +$("sec-z").value;
+  $("sec-val").textContent = on ? `${fmt(z, 2)}` : "—";
+  v.setSection(on ? "z" : null, z);
+}
+$("sec-on").addEventListener("change", applySection);
+$("sec-z").addEventListener("input", () => { $("sec-on").checked = true; applySection(); });
+
+// ---------------- file list (live from tools/view; static manifest.json fallback) ----------------
+let models = [];
+async function buildList() {
+  const list = $("list");
+  try {
+    const res = await fetch("/__manifest", { cache: "no-cache" }).catch(() => null);
+    const data = res?.ok ? await res.json() : await (await fetch("manifest.json", { cache: "no-cache" })).json();
+    models = data.models;
+  } catch {
+    list.innerHTML = `<div class="group-label">No file list. Start with <code>tools/view</code>.</div>`;
+    return;
+  }
+  renderList();
+}
+function renderList() {
+  const q = $("filter").value.trim().toLowerCase();
+  const list = $("list");
+  list.innerHTML = "";
+  const groups = {};
+  for (const m of models) if (!q || m.path.toLowerCase().includes(q)) (groups[m.project] ||= []).push(m);
+  for (const project of Object.keys(groups).sort()) {
+    const label = document.createElement("div");
+    label.className = "group-label"; label.textContent = project;
+    list.appendChild(label);
+    for (const m of groups[project]) {
+      const item = document.createElement("div");
+      item.className = "item"; item.dataset.path = m.path; item.title = m.path;
+      const sub = m.path.split("/").slice(1, -1).join("/");
+      item.innerHTML = `<span class="nm">${esc(m.name)}${m.name.endsWith(".3mf") ? '<span class="tag">3MF</span>' : ""}${sub ? ` <span style="color:var(--muted);font-size:10px">${esc(sub)}</span>` : ""}</span><span class="sz">${kb(m.bytes)}</span>`;
+      item.addEventListener("click", () => select(m.path));
+      list.appendChild(item);
+    }
+  }
+  markActive();
+}
+function markActive() {
+  const cur = new URLSearchParams(location.search).get("file");
+  document.querySelectorAll(".item").forEach(el => el.classList.toggle("active", el.dataset.path === cur));
+}
+async function select(path) {
+  history.replaceState(null, "", `?file=${encodeURIComponent(path)}`);
+  markActive();
+  document.body.classList.remove("menu");
+  $("hint").style.display = "flex"; $("hint").textContent = `Loading ${path}…`;
+  try {
+    const res = await fetch("/" + path.split("/").map(encodeURIComponent).join("/"), { cache: "no-cache" });
+    if (!res.ok) throw new Error(res.status + " " + res.statusText);
+    await load(path, await res.arrayBuffer(), path);
+  } catch (e) {
+    $("hint").style.display = "flex"; $("hint").textContent = `Failed to load ${path}: ${e.message}`;
+    console.error(e);
+  }
+}
+$("filter").addEventListener("input", renderList);
+
+// ---------------- drag & drop ----------------
+const body = document.body;
+["dragenter", "dragover"].forEach(ev => body.addEventListener(ev, e => { e.preventDefault(); body.classList.add("dragging"); }));
+["dragleave", "drop"].forEach(ev => body.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === body) body.classList.remove("dragging"); }));
+body.addEventListener("drop", async e => {
+  const file = [...(e.dataTransfer?.files || [])].find(f => /\.(stl|3mf)$/i.test(f.name));
+  if (!file) return;
+  document.querySelectorAll(".item.active").forEach(el => el.classList.remove("active"));
+  try { await load(file.name, await file.arrayBuffer(), `(dropped) ${file.name}`); } catch (err) { console.error(err); }
+});
+
+// ---------------- toolbar ----------------
+const toggle = (id, key, invert) => $(id).addEventListener("click", () => {
+  const val = !v.state[key]; v.set({ [key]: val }); $(id).classList.toggle("on", val);
+});
+toggle("btn-edges", "edges"); toggle("btn-wire", "wireframe"); toggle("btn-rotate", "rotate");
+toggle("btn-helpers", "helpers"); toggle("btn-mods", "modifiers"); toggle("btn-pauses", "pauses");
+let ortho = false;
+$("btn-ortho").addEventListener("click", () => { ortho = !ortho; v.setOrtho(ortho); $("btn-ortho").classList.toggle("on", ortho); });
+$("btn-fit").addEventListener("click", () => v.setView($("sel-view").value));
+$("btn-menu").addEventListener("click", () => body.classList.toggle("menu"));
+$("sel-view").addEventListener("change", e => v.setView(e.target.value));
+$("sel-scheme").addEventListener("change", e => v.setScheme(e.target.value));
+addEventListener("keydown", e => {
+  if (["INPUT", "SELECT"].includes(e.target.tagName)) return;
+  const map = { f: "btn-fit", e: "btn-edges", w: "btn-wire", r: "btn-rotate", g: "btn-helpers", o: "btn-ortho", m: "btn-mods", p: "btn-pauses" };
+  const id = map[e.key.toLowerCase()]; if (id) $(id).click();
+});
+
+v.setScheme("cornfield");
+await buildList();
+const initial = new URLSearchParams(location.search).get("file");
+if (initial) select(initial);
+</script>
+</body>
+</html>

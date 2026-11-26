@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Blender anywhere: the Mac app if installed, else apt Blender 4.0 (installed on first use).
+#   tools/blender -b -P myproj/render.py      (run from the script's directory)
+set -e
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mac=/Applications/Blender.app/Contents/MacOS/Blender
+if [ -x "$mac" ]; then exec "$mac" "$@"; fi
+"$here/cloud/need" blender
+exec blender "$@"

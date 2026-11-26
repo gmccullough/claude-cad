@@ -1,0 +1,9 @@
+{
+  "name": "prints-cloud-tools",
+  "private": true,
+  "type": "module",
+  "description": "Headless OpenSCAD (wasm) + viewer/render tooling so the repo works in a Linux cloud container",
+  "dependencies": {
+    "openscad-wasm-prebuilt": "1.2.0"
+  }
+}

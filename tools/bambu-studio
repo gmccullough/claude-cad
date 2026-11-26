@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Bambu Studio CLI anywhere: the Mac app if installed, else the Linux AppImage
+# installed by tools/cloud/install_bambu.sh (run headless under Xvfb).
+#   tools/bambu-studio --slice 0 --outputdir out/ plate.3mf
+set -e
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mac=/Applications/BambuStudio.app/Contents/MacOS/BambuStudio
+if [ -x "$mac" ]; then exec "$mac" "$@"; fi
+"$here/cloud/need" bambu      # installs the pinned AppImage on first use (BAMBU.md)
+cur="$here/cloud/.cache/bambu/current"
+export LD_LIBRARY_PATH="$cur/ffmpeg7${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec xvfb-run -a "$cur/squashfs-root/AppRun" "$@"

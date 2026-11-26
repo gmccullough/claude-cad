@@ -1,0 +1,11 @@
+.DS_Store
+# Build output (regenerate with each project's build_3mf.py)
+*.3mf
+*.gcode
+*.csg
+out/
+.renders/
+render*.png
+__pycache__/
+*.pyc
+*.scad~

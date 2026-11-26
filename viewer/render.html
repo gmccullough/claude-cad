@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>render</title>
+<style>html,body{margin:0;background:#fff}#c{width:800px;height:600px}</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
+</head><body><div id="c"></div>
+<!-- Headless page driven by tools/cloud/render.mjs via Playwright. -->
+<script type="module">
+import { createViewer } from "./lib/viewer.js";
+import { parseModel } from "./lib/loaders.js";
+const v = createViewer(document.getElementById("c"), { preserveDrawingBuffer: true, pixelRatio: 1 });
+window.__viewer = v;
+window.__load = async (url, name) => {
+  const buf = await (await fetch(url)).arrayBuffer();
+  v.show(await parseModel(name || url, buf));
+  return v.stats();
+};
+window.__ready = true;
+</script></body></html>

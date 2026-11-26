@@ -1,0 +1,13 @@
+# Python deps used across the repo's build / check / render scripts (survey: Nov 2026).
+numpy
+scipy
+trimesh
+manifold3d
+shapely
+matplotlib
+pillow
+opencv-python-headless
+pymeshfix
+networkx
+lxml
+rtree

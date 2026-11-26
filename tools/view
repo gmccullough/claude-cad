@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Interactive STL/3MF viewer for the whole repo: tools/view [port]
+exec node "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/viewer/serve.mjs" "$@"
