@@ -28,4 +28,6 @@ tools/render x.3mf    # same scene code, headless -> PNG (see tools/cloud/README
 | `lib/viewer.js` | Scene, cameras (persp + fitted ortho), section clipping, stats, snapshots |
 | `serve.mjs` | Zero-dependency server (`tools/view`), live `/__manifest` |
 | `generate-manifest.mjs` | Writes a static `manifest.json` for other static hosts |
-| `build-standalone.mjs` | Builds a single-file HTML with one STL embedded (opens from `file://`, iOS Quick Look) |
+
+For a single self-contained page to send to someone, use `tools/cloud/build_artifact.py` (see
+`tools/cloud/README.md`).
