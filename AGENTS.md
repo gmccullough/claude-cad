@@ -3,8 +3,9 @@
 This repo is a working setup for designing printable parts with an AI coding agent. Claude
 writes parametric OpenSCAD, builds it, looks at the result, and hands you a ready-to-slice
 Bambu `.3mf`. This file is the agent's standing guide: shared patterns, tolerances, the photo
-measuring practice and the tooling. Each project directory has its own `AGENTS.md` with its
-status, measurements and print results.
+measuring practice and the tooling. Each project directory holds its `.scad` (parameters at the
+top), a `build_3mf.py`, and its own `AGENTS.md` with its purpose, measurements and dated print
+results.
 
 ## Where knowledge lives (repo docs, not agent memory)
 
@@ -17,7 +18,8 @@ this repo to enforce that.
 |---|---|
 | A project's status, measurements, print results, open questions, lessons | that project's `AGENTS.md` (dated entries; supersede, don't just append contradictions) |
 | Cross-project modeling rules and conventions | this file |
-| A tool's gotcha (OpenSCAD, Bambu, trimesh, cloud setup) | `tools/README.md`, `tools/cloud/README.md` or `tools/cloud/BAMBU.md` |
+| What an OpenSCAD build does or doesn't support, or a language pitfall | `OPENSCAD_DOCS.md` (say which build you checked it on) |
+| A tool's gotcha (Bambu, trimesh, rendering, cloud setup) | `tools/README.md`, `tools/cloud/README.md` or `tools/cloud/BAMBU.md` |
 | Photo-measurement accuracy after a real-world check | the calibration log under "Measuring from photos" below |
 | Photos, scans or reference files the user sends | the project's `ref/` (photos in `ref/photos/`), the same turn they arrive |
 | A step-by-step process that failed and then worked | the process doc it belongs to (e.g. `photo-to-cad-process.md`) |
@@ -31,13 +33,14 @@ write-up at the end. Commit doc updates with the work they describe.
   design that's out for printing, ask how the print went.
 - People talk in physical terms (layers, thickness, diameter). Translate to print-ready values:
   "layers" = 0.2 mm print layers, and thicknesses snap to 0.2 mm multiples (see Print Settings).
-- People edit parameters by hand between sessions. Read the current files before regenerating
-  anything, and never overwrite hand-tuned values.
+- People edit parameters and tables by hand between sessions. Read the current files before
+  regenerating anything, and never overwrite hand-tuned values.
 - When a result "looks wrong" to them, assume the target was misunderstood (wrong station,
   wrong feature) before blaming stale files or caching. Restate the target in model
   coordinates first.
-- When you name an output file (`.3mf`, `.stl`, a render), give its full absolute path. Only
-  full paths render as clickable links in the Claude Code terminal.
+- When you name a file to them (an output `.3mf` or `.stl`, a render, a script), give its full
+  absolute path, not a repo-relative or bare filename. Only full paths render as clickable
+  links in the Claude Code terminal.
 
 ## Always build through to the .3mf
 
@@ -150,8 +153,9 @@ python3 tools/cloud/build_artifact.py <scratchpad>/name.html "Readable Name" \
 - Do this instead of telling the person to open files in OpenSCAD or Bambu Studio.
 
 **Checking a 3MF by slicing it:** `check_slice.py` reports the settings Bambu actually applied
-(catches overrides silently reverted), the layer each pause lands after, grams of filament, and
-infill line spacing at probe points (about 0.43 mm means a modifier really went solid).
+(catches overrides silently reverted), the height the print has reached at each pause, grams of
+filament, and infill line spacing at probe points (about 0.43 mm means a modifier really went
+solid).
 
 **Desktop:** the wrappers prefer the Mac apps (`tools/openscad`, `tools/bambu-studio`,
 `tools/blender`) when installed. `tools/render` needs Playwright once:
@@ -160,91 +164,17 @@ viewer on localhost:8000.
 
 Details: [tools/README.md](tools/README.md), [tools/cloud/README.md](tools/cloud/README.md).
 
-## OpenSCAD Language Reference
+## OpenSCAD reference
 
-**On session start**: Read [OPENSCAD_DOCS.md](OPENSCAD_DOCS.md) for key language features,
-hidden gems, pitfalls, and links to the full local documentation in `docs/`. Consult the linked
-docs files when working with specific features.
+Nothing here needs reading at session start. [OPENSCAD_DOCS.md](OPENSCAD_DOCS.md) records what
+is specific to the OpenSCAD builds these tools run: which build runs where, which newer features
+each one lacks or hides behind an `--enable` flag, and the pitfalls checked against them. Read it
+before using any feature newer than OpenSCAD 2021.01, and when a model builds on one machine but
+not another. `docs/` is a local copy of the language reference for looking a feature up.
 
 Construction priority for any new part: topology → shape → size → detail. Choose primitives by
 aspect ratio (`rotate_extrude` for round bodies, hull chains of discs or spheres for tapered
 or swept ones), and compute `$fn` from radius rather than hardcoding it.
-
-## OpenSCAD Basics
-
-- **Preview (F5)** is fast but shows boolean operations as coloured overlays (green =
-  subtraction volume, not the final result). **Render (F6)** computes the real CSG. Always
-  verify cross-sections and booleans with a render.
-
-### Cross-Section Visualization
-
-```openscad
-cross_section = true;  // Toggle at top of file
-
-module cut_plane() {
-    translate([-100, 0, -1]) cube([200, 100, 50]);  // Cuts at y=0
-}
-
-difference() {
-    your_model();
-    if (cross_section) cut_plane();
-}
-```
-
-**Common mistake**: the cut plane must actually intersect the model. If parts are translated,
-the cut plane must account for their positions. (`tools/render --section z=<h>` does this
-without editing the model.)
-
-## Key OpenSCAD Patterns
-
-### Rounded Polygons (2D)
-Double-offset rounds corners while keeping the size:
-```openscad
-module rounded_polygon_2d(size, radius) {
-    offset(r = radius) offset(r = -radius) your_polygon_2d(size);
-}
-```
-
-### Creating Domes
-
-**Wrong: `hull()` creates a linear taper, not a curve:**
-```openscad
-hull() {   // a truncated cone, NOT a dome
-    linear_extrude(0.1) circle(r = 25);
-    translate([0, 0, 10]) linear_extrude(0.1) circle(r = 5);
-}
-```
-
-**Right: sphere intersection:**
-```openscad
-// R = (base_r² + dome_h²) / (2 * dome_h)
-sphere_r = (25*25 + 3*3) / (2*3);  // ≈ 106mm for a gentle curve
-
-intersection() {
-    linear_extrude(height = dome_height) your_base_shape();
-    translate([0, 0, dome_height - sphere_r]) sphere(r = sphere_r, $fn = 128);  // top touches z = dome_height
-}
-```
-
-Gentle domes (~10° average slope) show ugly layer stair-stepping. Deliberate terraces at
-0.2 mm-multiple heights often print better (see `examples/triangular-elipsoid`).
-
-### Wavy Surfaces
-For surfaces that vary with angle (radial waves):
-```openscad
-function wave_z(angle, base, amplitude, num_waves) =
-    base + amplitude * (1 + sin(num_waves * angle)) / 2;
-// Build with hull() segments around the circumference, vertices at each angle's height.
-```
-
-### Conditional Geometry
-Keep optional geometry inside the operation it modifies rather than switching whole models:
-```openscad
-difference() {
-    main_model();
-    if (cross_section) cut_plane();
-}
-```
 
 ## Magnet Pocket Design
 
@@ -252,7 +182,7 @@ difference() {
 Design pockets so magnets can be inserted mid-print:
 
 1. **Pockets on the top surface** (not the bottom): print most of the part first
-2. **Pause at the pocket's top** and insert the magnets
+2. **Pause when the pocket is complete** and insert the magnets
 3. **Resume to seal**: cover layers bridge over the magnets
 
 ```openscad
@@ -266,16 +196,25 @@ cover_thickness = cover_layers * layer_height;  // 0.4mm
 pocket_diameter = magnet_diameter + magnet_clearance;
 pocket_depth = magnet_height;
 pocket_z = total_height - cover_thickness - pocket_depth;
-pause_height = total_height - cover_thickness;   // for the slicer
+pause_height = total_height - cover_thickness;   // pocket top: the height to reach before pausing
+pause_entry  = pause_height + layer_height;      // what goes in the .3mf (see below)
 
 module magnet_pocket() {
     translate([0, 0, pocket_z]) cylinder(h = pocket_depth, d = pocket_diameter, $fn = 32);
 }
 ```
 
-`echo()` the pause height and have `build_3mf.py` read it from the OpenSCAD output, so the
+`echo()` the pause value and have `build_3mf.py` read it from the OpenSCAD output, so the
 pause in the `.3mf` can never drift from the pocket it serves
 (`examples/triangular-elipsoid/build_3mf.py` does this).
+
+**A pause entry fires before its layer.** Bambu runs a pause entered at height Z before it
+prints the layer that tops out at Z, so the print is one layer short of Z when it stops.
+Entering the pocket top itself stops with the pocket a layer short and the magnet standing a
+layer proud; enter pocket top + one layer to stop with the pocket complete. Confirm with
+`check_slice.py`, which reports the height reached at each pause. The `triangular-elipsoid`
+example enters the pocket top itself, so it pauses a layer short. Ask before shifting the pause
+of a design that already prints well.
 
 ## Tolerances for Fit
 
@@ -336,45 +275,14 @@ OpenSCAD primitives and don't try to convert it to CAD surfaces.
 - **Walls**: 3-4 perimeters for strength
 - **Top/bottom layers**: 4+ for good bridging over magnet pockets
 - **Supports**: design them out where possible (flat bottoms, 45° overhangs)
-
-## File Structure
-
-Each design should include:
-- `design_name.scad`: OpenSCAD source with parameters at the top
-- `AGENTS.md`: purpose, parameters, measurements with confidence, print results and lessons
-  (dated)
-- `build_3mf.py`: STL export + `.3mf` via `tools/bambu3mf.py`
-
-```openscad
-// Title and description, key specifications
-
-// === PREVIEW ===
-cross_section = false;
-
-// === PARAMETERS ===
-// Dimensions, tolerances, etc. Mark photo estimates with (~).
-
-// === MODULES ===
-
-// === FINAL MODEL ===
-
-// === INFO ===
-echo(str("PAUSE HEIGHT: ", pause_height));
-```
-
-## Common Mistakes
-
-1. **Cut plane misses the model**: account for translated parts
-2. **Using preview to verify geometry**: render booleans
-3. **`hull()` for domes**: makes a linear taper; use sphere intersection
-4. **Pockets on the bottom**: put them on top for pause-and-insert
-5. **Forgetting cover thickness**: account for it in `pocket_z`
-6. **Through-holes vs pockets**: through-holes don't need a cover calculation
+- **Gentle domes** (about 10° average slope) show ugly layer stair-stepping. Deliberate terraces
+  at 0.2 mm-multiple heights often print better (see `examples/triangular-elipsoid`).
 
 ## CLI Rendering & Self-Testing
 
-`tools/openscad` runs anywhere: the Mac app if installed, else OpenSCAD 2025 compiled to wasm
-(Linux, cloud).
+`tools/openscad` runs anywhere: the Mac app if installed, else OpenSCAD 2025.01 compiled to wasm
+(Linux, cloud). The two are different versions, and the wasm build rejects some syntax a newer
+desktop build accepts (see [OPENSCAD_DOCS.md](OPENSCAD_DOCS.md)).
 
 ### Quick error check (after every edit)
 

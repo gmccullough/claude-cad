@@ -13,8 +13,8 @@ them, so it doesn't relearn them on your tokens.
 
 | Path | What |
 |---|---|
-| [AGENTS.md](AGENTS.md) | The agent's standing guide: workflow, OpenSCAD patterns, tolerances, magnet pause-and-insert, hardware rules, measuring from photos, which tool to use when. `CLAUDE.md` imports it so Claude Code always loads it. |
-| [OPENSCAD_DOCS.md](OPENSCAD_DOCS.md), [docs/](docs/) | OpenSCAD language notes and pitfalls, plus a local copy of the manual the agent can read |
+| [AGENTS.md](AGENTS.md) | The agent's standing guide: workflow, measuring from photos, which tool to use when, tolerances, magnet pause-and-insert, hardware rules, print settings. `CLAUDE.md` imports it so Claude Code always loads it. |
+| [OPENSCAD_DOCS.md](OPENSCAD_DOCS.md), [docs/](docs/) | Which OpenSCAD build runs where, what each one supports, and pitfalls checked against them, plus a local copy of the language reference to look things up in |
 | [photo-to-cad-process.md](photo-to-cad-process.md) | 2D-first pipeline for replicating a shape from photos |
 | [tools/](tools/README.md) | `openscad` (runs anywhere, incl. wasm in the cloud), `render` (lets the agent *see* its model), `bambu3mf.py` (STL → ready-to-slice `.3mf` with settings and magnet pauses), `cloud/check_slice.py` (slice headless and report what Bambu really did), `cloud/build_artifact.py` (phone-viewable 3D page), `view` (local viewer server) |
 | [viewer/](viewer/README.md) | three.js STL/3MF viewer shared by `render`, `view` and the phone page: Bambu bed positions, modifiers, pause layers, Z cut |
@@ -89,5 +89,5 @@ lesson goes.
 ## License
 
 MIT, see [LICENSE](LICENSE). `docs/` is from the OpenSCAD manual (CC BY-SA) and
-`viewer/vendor*/` is three.js (MIT). The Wahoo receiver in the mount example is Wahoo Fitness's design (MIT,
+`viewer/vendor/` is three.js (MIT). The Wahoo receiver in the mount example is Wahoo Fitness's design (MIT,
 notice in `examples/roval-wahoo-mount/ref/WAHOO-LICENSE.txt`).
