@@ -219,7 +219,11 @@ def model_settings_xml(parts) -> str:
 
 
 def custom_gcode_xml(pauses) -> str:
-    """pauses: iterable of (top_z, gcode). M400 U1 is Bambu's pause."""
+    """pauses: iterable of (top_z, gcode). M400 U1 is Bambu's pause.
+
+    Bambu runs the gcode BEFORE it prints the layer whose top is top_z, so the print is one
+    layer short of top_z when it stops. To stop with a pocket complete to height h, pass
+    h + layer_height."""
     out = ['<?xml version="1.0" encoding="utf-8"?>\n<custom_gcodes_per_layer>\n'
            '<plate>\n<plate_info id="1"/>\n']
     for top_z, gcode in pauses:

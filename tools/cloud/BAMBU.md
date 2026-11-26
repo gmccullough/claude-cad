@@ -56,8 +56,10 @@ Currently pinned: **v02.09.01.70**. Installed under `tools/cloud/.cache/bambu/<v
 
 `examples/triangular-elipsoid/triangular_elipsoid_v3.3mf` (from its `build_3mf.py`):
 - Settings: `wall_loops 3` and `enable_support 0` were honoured.
-- Pause: exactly one `M400 U1`, right after the layer topping out at z = 2.4 mm. That's the
-  model's `PAUSE HEIGHT`.
+- Pause: exactly one `M400 U1`, at the start of the layer that tops out at z = 2.4 mm (the
+  model's `PAUSE HEIGHT`), so the print is 2.2 mm tall when it stops. A pause fires before the
+  layer it is entered at (see `tools/README.md`). Corrected 2026-11-25: this page used to say
+  the pause came after that layer, because `check_slice.py` reported it that way.
 - Modifiers: inside the plate A post and the plate B pin, the infill lines are parallel and
   **0.425 / 0.43 mm apart**. That's solid 100% zig-zag and matches the desktop 2.08 check; sparse
   grid would be about 0.81 mm with open squares.

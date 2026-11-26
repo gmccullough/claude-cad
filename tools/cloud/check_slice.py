@@ -4,7 +4,9 @@
 
 Reports: success/return code, the effective settings Bambu wrote into the G-code
 header (catches overrides silently reverted to the preset), every pause /
-colour change with the layer it lands after, filament grams and print time.
+colour change with the height the print has reached when it fires and the layer it
+comes before (Bambu runs a pause entered at top_z BEFORE printing that layer, so the
+print is one layer short of top_z), filament grams and print time.
 --probe X,Y,R,Z lists the features extruded within R mm of (X,Y) on the layer at
 height Z, plus the spacing of parallel infill lines there (solid zig-zag ~0.43 mm
 at 0.4 nozzle, sparse grid ~0.8 mm+). Use it to check a modifier volume really
@@ -29,6 +31,7 @@ def slice_3mf(path, plate, out):
 def parse(gcode):
     settings, pauses, segs = {}, [], {}
     z = feat = x = y = None
+    printed = 0.0   # top of the last layer that has had plastic laid on it
     for line in open(gcode, errors="replace"):
         if line.startswith("; ") and " = " in line:
             k, v = line[2:].split(" = ", 1)
@@ -39,15 +42,17 @@ def parse(gcode):
         elif line.startswith("; FEATURE:"):
             feat = line.split(":", 1)[1].strip()
         elif line.startswith("M400 U1"):
-            pauses.append(("pause", z))
+            pauses.append(("pause", printed, z))
         elif line.startswith("M600"):
-            pauses.append(("colour change", z))
+            pauses.append(("colour change", printed, z))
         elif line.startswith(("G1 ", "G0 ")):
             mx, my, me = (re.search(p, line) for p in (r"X([-\d.]+)", r"Y([-\d.]+)", r"E([-\d.]+)"))
             nx = float(mx.group(1)) if mx else x
             ny = float(my.group(1)) if my else y
             if me and float(me.group(1)) > 0 and x is not None and feat:
                 segs.setdefault(z, []).append((feat, x, y, nx, ny))
+                if mx or my:
+                    printed = z
             x, y = nx, ny
     return settings, pauses, segs
 
@@ -87,8 +92,8 @@ def main():
         for k in KEYS:
             if k in settings:
                 print(f"  {k:24s} {settings[k]}")
-        for kind, z in pauses:
-            print(f"  {kind:24s} after the layer topping out at z={z}")
+        for kind, printed, z in pauses:
+            print(f"  {kind:24s} with the print {printed} mm tall, before the layer that tops out at z={z}")
         if not pauses:
             print("  (no pauses / colour changes)")
         for p in a.probe:

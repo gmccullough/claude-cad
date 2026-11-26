@@ -12,7 +12,7 @@ bambu3mf.build(
     ["plate_a.stl", "plate_b.stl"],          # one object each, laid out along X
     profile="tools/profiles/p2s_pla_0.20mm.json",
     overrides={"wall_loops": 3},             # deltas from the stock profile
-    pauses=[(2.6, "M400 U1")],               # (top_z, gcode) — M400 U1 is pause
+    pauses=[(2.6, "M400 U1")],               # (top_z, gcode): pauses BEFORE the layer topping out at 2.6
 )
 ```
 
@@ -65,6 +65,15 @@ apart, which stack into open vertical holes. Bambu 2.08 doesn't promote 100% to 
 pins printed hollow). Verify by slicing headless (`tools/cloud/check_slice.py --probe`):
 solid reads ~0.43 mm line spacing. Bambu re-centres each object's meshes on load but moves the
 modifier parts with them, so modifiers placed in the STL's own coordinates stay put.
+
+**A pause fires before its layer, not after it.** `pauses=[(Z, "M400 U1")]` writes
+`top_z = Z`, and Bambu runs the pause at the start of the layer that tops out at Z. The print
+is one layer short of Z when it stops: with an entry at 2.4, layers print 2.0, 2.2, pause,
+2.4. Entering a magnet pocket's top therefore stops with the pocket one layer short and the
+magnet standing a layer proud. To stop with the pocket complete, enter pocket top + one layer.
+`check_slice.py` prints the height reached at each pause; compare that with the pocket top, not
+the entry. It used to print the entry as "after the layer topping out at", which hid this
+(checked on Bambu Studio 02.08.02.61).
 
 ### Why generate rather than click
 
