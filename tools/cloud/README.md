@@ -1,7 +1,7 @@
-# tools/cloud — run the repo without the Mac
+# tools/cloud: run everything without a desktop
 
-Everything the projects do on the laptop (OpenSCAD exports, `build_3mf.py`
-pipelines, trimesh/manifold checks, PNG renders, turntables) runs in a Linux
+Everything a project does on a desktop (OpenSCAD exports, `build_3mf.py`
+pipelines, trimesh/manifold checks, PNG renders, turntables) also runs in a Linux
 cloud container (a Claude Code cloud session) or on any Linux box.
 
 Nothing needs installing up front. Each tool installs what it needs on first use through
@@ -10,24 +10,25 @@ and takes about 1 s when the capability is already installed. `tools/cloud/setup
 installs everything at once.
 
 ```bash
-tools/openscad -o x.stl model.scad          # OpenSCAD 2025 + Manifold (wasm)
+tools/openscad -o x.stl model.scad          # OpenSCAD 2025.01 + Manifold (wasm)
 tools/render model.stl|plate.3mf|part.scad  # PNG sheet -> .renders/<name>.png
 tools/view                                  # interactive viewer on :8000
 ```
 
 ## What replaces what
 
-| On the Mac | In the cloud | Notes |
+| On a desktop | In the cloud | Notes |
 |---|---|---|
-| `/Applications/OpenSCAD.app` | `tools/openscad` → `cloud/openscad.mjs` | OpenSCAD **2025.01** compiled to WebAssembly, run by Node. Defaults to `--backend=manifold`. BOSL2 and the Liberation/DejaVu fonts are staged automatically. On a Mac with the app installed, `tools/openscad` just execs the app. |
-| `OpenSCAD -o x.png` | same command | wasm has no OpenGL, so PNG export goes to apt's native **OpenSCAD 2021** under Xvfb (real `$vpt/$vpr/$vpd`, `--camera`, colour schemes). 2021's `--render` drops `color()` (2025+Manifold keeps it), so `--render` is swapped for `--preview`, which keeps colours. Without apt/Xvfb, or with `OPENSCAD_PNG_VIA_VIEWER=1`, it renders with `tools/render` instead. Verified: output matches the Mac renders. |
+| `/Applications/OpenSCAD.app` | `tools/openscad` → `cloud/openscad.mjs` | OpenSCAD **2025.01.19** compiled to WebAssembly, run by Node. Defaults to `--backend=manifold`. It is older than a current desktop snapshot and rejects some newer syntax (bitwise operators, `object()`): see `OPENSCAD_DOCS.md`. BOSL2 and the Liberation/DejaVu fonts are staged automatically. On a Mac with the app installed, `tools/openscad` just execs the app. |
+| `OpenSCAD -o x.png` | same command | wasm has no OpenGL, so PNG export goes to apt's native **OpenSCAD 2021** under Xvfb (real `$vpt/$vpr/$vpd`, `--camera`, colour schemes). 2021's `--render` drops `color()` (2025+Manifold keeps it), so `--render` is swapped for `--preview`, which keeps colours. Without apt/Xvfb, or with `OPENSCAD_PNG_VIA_VIEWER=1`, it renders with `tools/render` instead. Verified: output matches desktop renders. A model that uses features newer than 2021.01 can't take this route (see `OPENSCAD_DOCS.md`). |
 | Opening STLs/3MFs in OpenSCAD/Bambu to look | `tools/render` (headless) and `tools/view` (interactive) | Same three.js code (`viewer/lib/`). Reads Bambu 3MF: objects at bed position, modifier/negative parts, pause layers, headline print settings. |
-| Blender stills | `tools/blender` (installs on first use), or `tools/render` | apt Blender 4.0.2 runs Cycles headless on CPU. Blender render scripts run unchanged in the cloud (10 renders in about 2 min) and match the Mac output. Scripts should switch to 4.0's auto-smooth when the 4.1 operator is missing. Ubuntu's build has no OpenImageDenoise, so they drop denoising and use 4x samples. |
-| `/opt/homebrew/bin/python3.9` | `python3` (3.13) + `requirements.txt` | numpy, scipy, trimesh(+rtree), manifold3d, shapely, matplotlib, pillow, opencv-headless, pymeshfix. |
-| Bambu Studio CLI `--slice` | `tools/bambu-studio`, `check_slice.py` | Linux AppImage v02.09.01.70, installed on first use (`need bambu` → `install_bambu.sh`). Needs GitHub release downloads, which your cloud environment must allow (see BAMBU.md). Verified against the Mac results. The process and the upgrade steps are in [BAMBU.md](BAMBU.md). |
+| Blender stills | `tools/blender` (installs on first use), or `tools/render` | apt Blender 4.0.2 runs Cycles headless on CPU. Blender render scripts run unchanged in the cloud (10 renders in about 2 min) and match desktop output. Scripts should switch to 4.0's auto-smooth when the 4.1 operator is missing. Ubuntu's build has no OpenImageDenoise, so they drop denoising and use 4x samples. |
+| Your own Python 3 | `python3` (3.13) + `requirements.txt` | numpy, scipy, trimesh(+rtree), manifold3d, shapely, matplotlib, pillow, opencv-headless, pymeshfix. |
+| Bambu Studio CLI `--slice` | `tools/bambu-studio`, `check_slice.py` | Linux AppImage v02.09.01.70, installed on first use (`need bambu` → `install_bambu.sh`). Needs GitHub release downloads, which your cloud environment must allow (see BAMBU.md). Verified against desktop results. The process and the upgrade steps are in [BAMBU.md](BAMBU.md). |
 
-Scripts that hard-coded the OpenSCAD path now use
-`os.environ.get("OPENSCAD")`, falling back to `tools/openscad` found by walking up from the script.
+Project build scripts find OpenSCAD through `os.environ.get("OPENSCAD")`, falling back to
+`tools/openscad` found by walking up from the script, so the same script runs in both places
+(`examples/triangular-elipsoid/build_3mf.py` shows the pattern).
 
 ## tools/render
 

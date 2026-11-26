@@ -54,12 +54,12 @@ Currently pinned: **v02.09.01.70**. Installed under `tools/cloud/.cache/bambu/<v
 
 ## What was verified (v02.09.01.70, Nov 2026)
 
-`triangular-elipsoid/triangular_elipsoid_v3.3mf` (from `build_3mf.py`):
+`examples/triangular-elipsoid/triangular_elipsoid_v3.3mf` (from its `build_3mf.py`):
 - Settings: `wall_loops 3` and `enable_support 0` were honoured.
 - Pause: exactly one `M400 U1`, right after the layer topping out at z = 2.4 mm. That's the
   model's `PAUSE HEIGHT`.
 - Modifiers: inside the plate A post and the plate B pin, the infill lines are parallel and
-  **0.425 / 0.43 mm apart**. That's solid 100% zig-zag and matches the Mac 2.08 check; sparse
+  **0.425 / 0.43 mm apart**. That's solid 100% zig-zag and matches the desktop 2.08 check; sparse
   grid would be about 0.81 mm with open squares.
 
 A larger single-part plate: slices, honours `wall_loops 6` and an outer-only brim, and uses
@@ -83,7 +83,7 @@ Slicing takes about 5 s per plate on 4 cores.
      `python3 -m zipfile -l av-*.whl | grep libavcodec`.
    - Record what you changed in this file.
 4. Re-run the verification and compare with the numbers above:
-   `python3 tools/cloud/check_slice.py triangular-elipsoid/triangular_elipsoid_v3.3mf --probe 101,128,2,1.0 --probe 150.2,128,2,1.0`.
-   Rebuild the 3MF first with `python3 triangular-elipsoid/build_3mf.py`.
+   `python3 tools/cloud/check_slice.py examples/triangular-elipsoid/triangular_elipsoid_v3.3mf --probe 101,128,2,1.0 --probe 150.2,128,2,1.0`.
+   Rebuild the 3MF first with `python3 examples/triangular-elipsoid/build_3mf.py`.
 5. Old versions stay in `.cache/bambu/<old>/` until deleted; `current` moves to the new one.
 6. Update "Currently pinned" and "What was verified" above, then commit.

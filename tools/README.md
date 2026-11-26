@@ -70,8 +70,8 @@ modifier parts with them, so modifiers placed in the STL's own coordinates stay 
 
 The magnet pause is `pocket_top_z` from the model. It moved several times during
 the spinner's design, and a hand-entered pause drifts out of step with the
-pocket it exists to serve. `triangular-elipsoid/build_3mf.py` scrapes it from
-the model's own `PAUSE HEIGHT` echo, so geometry and pause share one source.
+pocket it exists to serve. `examples/triangular-elipsoid/build_3mf.py` scrapes it
+from the model's own `PAUSE HEIGHT` echo, so geometry and pause share one source.
 
 ## profiles/
 
@@ -84,6 +84,11 @@ baseline and express project settings as overrides so the diff stays readable.
 **Preview PNGs get colours wrong in pockets.** A `-o x.png` without `--render` is an OpenCSG
 preview, and it paints the floor of a subtracted pocket in the colour of the object it was cut
 from, even when a differently coloured part fills the space beneath: dark inlays in white
-pockets came out white. For colour-accurate PNGs use
-`--render --backend=manifold` (OpenSCAD 2026 keeps `color()` through a manifold render, and
-it's fast: ~1 s for a 60-part assembly).
+pockets came out white. Previews also z-fight on coincident faces, so a flush cut shows a
+shredded skin across its mouth.
+
+On a desktop, use `--render` for colour-accurate PNGs. A current build renders with Manifold,
+which keeps `color()` and is fast (about 1 s for a 60-part assembly). In the cloud a PNG always
+comes from the 2021.01 preview (see `cloud/README.md`), so both traps apply there: judge
+geometry from `tools/render`, not from that PNG. Which OpenSCAD build runs where is in
+`OPENSCAD_DOCS.md`.
